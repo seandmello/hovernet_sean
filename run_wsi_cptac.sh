@@ -54,11 +54,15 @@ for slide in $(ls "$SLIDE_ROOT"/*.svs | sort); do
 done
 echo "[$CANCER_TYPE task $TASK_ID/$NR_TASKS] $(ls "$SHARD_DIR" | wc -l) of $i slides -> $OUTPUT_DIR"
 
+echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+nvidia-smi --query-gpu=name,memory.total --format=csv
+python -c "import torch; print('torch', torch.__version__, 'cuda available:', torch.cuda.is_available())"
+
 # -------------------------
 # Run inference (PanNuke was trained at 40x)
 # -------------------------
 python run_infer.py \
-    --gpu=0 \
+    --gpu=${CUDA_VISIBLE_DEVICES:-0} \
     --nr_types=6 \
     --type_info_path=type_info.json \
     --model_path=$MODEL_PATH \
