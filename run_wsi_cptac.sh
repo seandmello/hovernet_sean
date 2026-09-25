@@ -30,7 +30,10 @@ OUTPUT_DIR=${WORK_ROOT}/output/${CANCER_TYPE}
 TASK_ID=${SLURM_ARRAY_TASK_ID:-0}
 NR_TASKS=${SLURM_ARRAY_TASK_COUNT:-1}
 SHARD_DIR=${WORK_ROOT}/shards/${CANCER_TYPE}_${TASK_ID}
-CACHE_DIR=${WORK_ROOT}/cache/${CANCER_TYPE}_${TASK_ID}
+# cache is I/O heavy (~15-30 GB per 40x slide); prefer node-local disk.
+# override with e.g. CACHE_ROOT=/tmp sbatch run_wsi_cptac.sh CCRCC
+CACHE_ROOT=${CACHE_ROOT:-${SLURM_TMPDIR:-${WORK_ROOT}/cache}}
+CACHE_DIR=${CACHE_ROOT}/hovernet_${CANCER_TYPE}_${SLURM_JOB_ID:-local}_${TASK_ID}
 
 # -------------------------
 # Environment setup
@@ -56,6 +59,7 @@ done
 echo "[$CANCER_TYPE task $TASK_ID/$NR_TASKS] $(ls "$SHARD_DIR" | wc -l) of $i slides -> $OUTPUT_DIR"
 
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+echo "cache: $CACHE_DIR"; df -h "$CACHE_ROOT" | tail -1
 nvidia-smi --query-gpu=name,memory.total --format=csv
 python -c "import torch; print('torch', torch.__version__, 'cuda available:', torch.cuda.is_available())"
 
