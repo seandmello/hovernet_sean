@@ -16,6 +16,7 @@
 #
 # usage: sbatch run_wsi_cptac.sh CCRCC
 #        CONDA_ENV=myenv sbatch run_wsi_cptac.sh CCRCC   (default env: hovernet)
+#        BATCH_SIZE=16 sbatch run_wsi_cptac.sh CCRCC     (default 32; lower on CUDA OOM)
 #        sbatch --array=0-7 run_wsi_cptac.sh LUAD
 
 set -e
@@ -41,6 +42,7 @@ CACHE_DIR=${CACHE_ROOT}/hovernet_${CANCER_TYPE}_${SLURM_JOB_ID:-local}_${TASK_ID
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate ${CONDA_ENV:-hovernet}
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 cd $SLURM_SUBMIT_DIR
 mkdir -p logs "$OUTPUT_DIR"/json "$OUTPUT_DIR"/thumb "$OUTPUT_DIR"/mask
@@ -60,7 +62,7 @@ echo "[$CANCER_TYPE task $TASK_ID/$NR_TASKS] $(ls "$SHARD_DIR" | wc -l) of $i sl
 
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 echo "cache: $CACHE_DIR"; df -h "$CACHE_ROOT" | tail -1
-nvidia-smi --query-gpu=name,memory.total --format=csv
+nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
 python -c "import torch; print('torch', torch.__version__, 'cuda available:', torch.cuda.is_available())"
 
 # -------------------------
@@ -72,7 +74,7 @@ python run_infer.py \
     --type_info_path=type_info.json \
     --model_path=$MODEL_PATH \
     --model_mode=fast \
-    --batch_size=64 \
+    --batch_size=${BATCH_SIZE:-32} \
     --nr_inference_workers=8 \
     --nr_post_proc_workers=16 \
     wsi \
