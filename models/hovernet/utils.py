@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 from matplotlib import cm
 
+from misc.utils import get_device
+
 
 ####
 def crop_op(x, cropping, data_format="NCHW"):
@@ -129,14 +131,14 @@ def msge_loss(true, pred, focus):
             -size // 2 + 1,
             size // 2 + 1,
             dtype=torch.float32,
-            device="cuda",
+            device=get_device(),
             requires_grad=False,
         )
         v_range = torch.arange(
             -size // 2 + 1,
             size // 2 + 1,
             dtype=torch.float32,
-            device="cuda",
+            device=get_device(),
             requires_grad=False,
         )
         h, v = torch.meshgrid(h_range, v_range)

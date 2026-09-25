@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     # ***
     run_args = {
-        'batch_size' : int(args['batch_size']) * nr_gpus,
+        'batch_size' : int(args['batch_size']) * max(nr_gpus, 1),
 
         'nr_inference_workers' : int(args['nr_inference_workers']),
         'nr_post_proc_workers' : int(args['nr_post_proc_workers']),

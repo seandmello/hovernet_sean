@@ -15,6 +15,7 @@ import torch
 import torch.utils.data as data
 import tqdm
 
+from misc.utils import get_device
 from run_utils.utils import convert_pytorch_checkpoint
 
 
@@ -62,12 +63,12 @@ class InferManager(object):
         model_creator = getattr(model_desc, "create_model")
 
         net = model_creator(**self.method["model_args"])
-        saved_state_dict = torch.load(self.method["model_path"])["desc"]
+        saved_state_dict = torch.load(self.method["model_path"], map_location="cpu", weights_only=False)["desc"]
         saved_state_dict = convert_pytorch_checkpoint(saved_state_dict)
 
         net.load_state_dict(saved_state_dict, strict=True)
         net = torch.nn.DataParallel(net)
-        net = net.to("cuda")
+        net = net.to(get_device())
 
         module_lib = import_module("models.hovernet.run_desc")
         run_step = getattr(module_lib, "infer_step")

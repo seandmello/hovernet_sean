@@ -10,6 +10,18 @@ from scipy import ndimage
 
 
 ####
+def get_device():
+    """Return the best available torch device: cuda, then mps, then cpu."""
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+    if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+####
 def normalize(mask, dtype=np.uint8):
     return (255 * mask / np.amax(mask)).astype(dtype)
 

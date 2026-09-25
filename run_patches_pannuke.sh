@@ -1,0 +1,1 @@
+python run_infer.py --gpu='0' --nr_types=6 --type_info_path=type_info.json --batch_size=64 --model_mode=fast --model_path=/cluster/home/t140585uhn/pannuke.tar --nr_inference_workers=8 --nr_post_proc_workers=16 tile --input_dir=/cluster/home/t140585uhn/synthetic_256 --output_dir=/cluster/home/t140585uhn/output/ --mem_usage=0.2 --draw_dot --save_qupath
