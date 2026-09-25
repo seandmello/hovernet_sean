@@ -15,6 +15,7 @@
 # same command can be resubmitted to continue after a timeout.
 #
 # usage: sbatch run_wsi_cptac.sh CCRCC
+#        CONDA_ENV=myenv sbatch run_wsi_cptac.sh CCRCC   (default env: hovernet)
 #        sbatch --array=0-7 run_wsi_cptac.sh LUAD
 
 set -e
@@ -35,7 +36,7 @@ CACHE_DIR=${WORK_ROOT}/cache/${CANCER_TYPE}_${TASK_ID}
 # Environment setup
 # -------------------------
 source ~/miniforge3/etc/profile.d/conda.sh
-conda activate hovernet_new
+conda activate ${CONDA_ENV:-hovernet}
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib
 
 cd $SLURM_SUBMIT_DIR
