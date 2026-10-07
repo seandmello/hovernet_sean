@@ -23,7 +23,16 @@ set -e
 
 CANCER_TYPE=${1:?usage: sbatch run_wsi_cptac.sh <CANCER_TYPE>}
 
-SLIDE_ROOT=/cluster/projects/kumargroup/hayden/data/CPTAC/CPTAC-${CANCER_TYPE}/slides/raw_v1/${CANCER_TYPE}
+# slides live in .../CPTAC-<TYPE>/slides/raw_v<N>/<TYPE>; use the highest raw_v<N>
+# found, or set SLIDE_ROOT=... to choose one explicitly
+CPTAC_ROOT=/cluster/projects/kumargroup/hayden/data/CPTAC
+if [ -z "$SLIDE_ROOT" ]; then
+    SLIDE_ROOT=$(ls -d "$CPTAC_ROOT"/CPTAC-${CANCER_TYPE}/slides/raw_v*/${CANCER_TYPE} 2>/dev/null | sort -V | tail -1)
+fi
+if [ -z "$SLIDE_ROOT" ] || ! ls "$SLIDE_ROOT"/*.svs > /dev/null 2>&1; then
+    echo "no .svs found for $CANCER_TYPE under $CPTAC_ROOT/CPTAC-${CANCER_TYPE}/slides/raw_v*/${CANCER_TYPE}" >&2
+    exit 1
+fi
 WORK_ROOT=/cluster/projects/kumargroup/sean/hovernet
 MODEL_PATH=${WORK_ROOT}/pannuke.tar
 OUTPUT_DIR=${WORK_ROOT}/output/${CANCER_TYPE}
@@ -58,7 +67,7 @@ for slide in $(ls "$SLIDE_ROOT"/*.svs | sort); do
     fi
     i=$((i + 1))
 done
-echo "[$CANCER_TYPE task $TASK_ID/$NR_TASKS] $(ls "$SHARD_DIR" | wc -l) of $i slides -> $OUTPUT_DIR"
+echo "[$CANCER_TYPE task $TASK_ID/$NR_TASKS] $(ls "$SHARD_DIR" | wc -l) of $i slides in $SLIDE_ROOT -> $OUTPUT_DIR"
 
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 echo "cache: $CACHE_DIR"; df -h "$CACHE_ROOT" | tail -1
