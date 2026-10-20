@@ -18,6 +18,8 @@
 #        CONDA_ENV=myenv sbatch run_wsi_cptac.sh CCRCC   (default env: hovernet)
 #        BATCH_SIZE=16 sbatch run_wsi_cptac.sh CCRCC     (default 32; lower on CUDA OOM)
 #        sbatch --array=0-7 run_wsi_cptac.sh LUAD
+#        SLIDE_LIST=todo.txt sbatch ... (only the .svs paths listed, one per line;
+#                                        submit_all_cptac.sh writes this for you)
 
 set -e
 
@@ -39,7 +41,7 @@ OUTPUT_DIR=${WORK_ROOT}/output/${CANCER_TYPE}
 
 TASK_ID=${SLURM_ARRAY_TASK_ID:-0}
 NR_TASKS=${SLURM_ARRAY_TASK_COUNT:-1}
-SHARD_DIR=${WORK_ROOT}/shards/${CANCER_TYPE}_${TASK_ID}
+SHARD_DIR=${WORK_ROOT}/shards/${CANCER_TYPE}_${SLURM_ARRAY_JOB_ID:-local}_${TASK_ID}
 # cache is I/O heavy (~15-30 GB per 40x slide); prefer node-local disk.
 # override with e.g. CACHE_ROOT=/tmp sbatch run_wsi_cptac.sh CCRCC
 CACHE_ROOT=${CACHE_ROOT:-${SLURM_TMPDIR:-${WORK_ROOT}/cache}}
@@ -58,10 +60,16 @@ mkdir -p logs "$OUTPUT_DIR"/json "$OUTPUT_DIR"/thumb "$OUTPUT_DIR"/mask
 
 # -------------------------
 # Build this task's shard: symlinks to every NR_TASKS-th .svs
+# (from SLIDE_LIST if given, so all tasks shard the same fixed list)
 # -------------------------
 rm -rf "$SHARD_DIR" && mkdir -p "$SHARD_DIR"
+if [ -n "$SLIDE_LIST" ]; then
+    SLIDES=$(sort "$SLIDE_LIST")
+else
+    SLIDES=$(ls "$SLIDE_ROOT"/*.svs | sort)
+fi
 i=0
-for slide in $(ls "$SLIDE_ROOT"/*.svs | sort); do
+for slide in $SLIDES; do
     if [ $((i % NR_TASKS)) -eq "$TASK_ID" ]; then
         ln -s "$slide" "$SHARD_DIR/"
     fi
