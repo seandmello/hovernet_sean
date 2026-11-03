@@ -28,10 +28,13 @@ CANCER_TYPE=${1:?usage: sbatch run_wsi_cptac.sh <CANCER_TYPE>}
 # slides live in .../CPTAC-<TYPE>/slides/raw_v<N>/<TYPE>; use the highest raw_v<N>
 # found, or set SLIDE_ROOT=... to choose one explicitly
 CPTAC_ROOT=/cluster/projects/kumargroup/hayden/data/CPTAC
-if [ -z "$SLIDE_ROOT" ]; then
+# (not needed when SLIDE_LIST is given, e.g. TCGA via submit_tcga.sh)
+if [ -n "$SLIDE_LIST" ]; then
+    SLIDE_ROOT=${SLIDE_ROOT:-$SLIDE_LIST}
+elif [ -z "$SLIDE_ROOT" ]; then
     SLIDE_ROOT=$(ls -d "$CPTAC_ROOT"/CPTAC-${CANCER_TYPE}/slides/raw_v*/${CANCER_TYPE} 2>/dev/null | sort -V | tail -1)
 fi
-if [ -z "$SLIDE_ROOT" ] || ! ls "$SLIDE_ROOT"/*.svs > /dev/null 2>&1; then
+if [ -z "$SLIDE_LIST" ] && { [ -z "$SLIDE_ROOT" ] || ! ls "$SLIDE_ROOT"/*.svs > /dev/null 2>&1; }; then
     echo "no .svs found for $CANCER_TYPE under $CPTAC_ROOT/CPTAC-${CANCER_TYPE}/slides/raw_v*/${CANCER_TYPE}" >&2
     exit 1
 fi
