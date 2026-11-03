@@ -38,7 +38,7 @@ for c in $COHORTS; do
     if [ ! -s "$selected" ]; then
         # slides may sit directly in raw/ or in per-file (GDC UUID) subfolders
         find -L "$src" -type f -name '*.svs' 2>/dev/null | sort \
-            | shuf --random-source=<(yes "$SEED") \
+            | shuf --random-source=<(yes "$SEED" 2>/dev/null) \
             | awk -v n="$N_SLIDES" '
                 {
                     f = $0; sub(/.*\//, "", f)
