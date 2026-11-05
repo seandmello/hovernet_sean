@@ -31,6 +31,16 @@ TODO_DIR=/cluster/projects/kumargroup/sean/hovernet/todo
 
 cd "$(dirname "$0")"
 mkdir -p logs "$TODO_DIR"
+
+# fail here, not in every array task, if the job's conda env is broken
+if [ -z "$DRY_RUN" ]; then
+    source ~/miniforge3/etc/profile.d/conda.sh
+    if ! conda run -n "${CONDA_ENV:-hovernet}" python -c "import cv2, torch, openslide, scipy, skimage" ; then
+        echo "conda env '${CONDA_ENV:-hovernet}' is missing packages (see error above); not submitting" >&2
+        exit 1
+    fi
+fi
+
 for c in $COHORTS; do
     src="$TCGA_ROOT/$c/slides/raw"
     selected="$TODO_DIR/${c}_selected${N_SLIDES}.txt"
