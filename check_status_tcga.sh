@@ -1,6 +1,8 @@
 #!/bin/bash
 # Progress of HoVer-Net WSI inference on the selected TCGA slides.
 #   bash check_status_tcga.sh [TCGA-BRCA ...]
+#   N_SLIDES=all bash check_status_tcga.sh    (match the N_SLIDES / REQUIRE_LW
+#                                              used with submit_tcga.sh)
 
 COHORTS=${@:-TCGA-BLCA TCGA-BRCA TCGA-GBM TCGA-HNSC TCGA-KIRC TCGA-LUAD TCGA-OV TCGA-UCEC}
 N_SLIDES=${N_SLIDES:-150}
@@ -10,7 +12,7 @@ cd "$(dirname "$0")"
 
 printf "%-10s %6s %9s %6s %8s\n" cohort done selected left crashes
 for c in $COHORTS; do
-    selected="$TODO_DIR/${c}_selected${N_SLIDES}.txt"
+    selected="$TODO_DIR/${c}${REQUIRE_LW:+_lw}_selected${N_SLIDES}.txt"
     total=$(cat "$selected" 2>/dev/null | wc -l)
     done_n=0
     if [ -s "$selected" ]; then

@@ -20,6 +20,11 @@
 #        N_SLIDES=200 SLIDES_PER_TASK=5 MAX_PARALLEL=20 bash submit_tcga.sh
 #        DRY_RUN=1 bash submit_tcga.sh              (select + report, no sbatch)
 #        FORCE=1 bash submit_tcga.sh                (submit even if jobs are queued)
+#        N_SLIDES=all bash submit_tcga.sh           (every candidate slide, no sampling)
+#        REQUIRE_LW=1 bash submit_tcga.sh           (only slides that have a harm10
+#            local-window map, i.e. the DX slides the protein maps were made from;
+#            searches all of $TCGA_ROOT/<COHORT>/slides, or SLIDE_SEARCH="dir1 dir2";
+#            sample file <COHORT>_lw_selected<N>.txt; cohorts without maps are skipped)
 
 COHORTS=${@:-TCGA-BLCA TCGA-BRCA TCGA-GBM TCGA-HNSC TCGA-KIRC TCGA-LUAD TCGA-OV TCGA-UCEC}
 N_SLIDES=${N_SLIDES:-150}
@@ -41,15 +46,39 @@ if [ -z "$DRY_RUN" ]; then
     fi
 fi
 
+LW_BASE=/cluster/projects/kumargroup/sean/results/05-inference
+lw_dir_for () {  # TCGA cohort -> local-window windows/ dir (harm10 bfep r1.5)
+    local ct
+    case "$1" in
+        TCGA-KIRC) ct=CCRCC ;; TCGA-HNSC) ct=HNSCC ;; TCGA-LUSC) ct=LSCC ;; TCGA-PAAD) ct=PDA ;;
+        *) ct=${1#TCGA-} ;;
+    esac
+    echo "$LW_BASE/${ct,,}_spatial_neighbourhoods/harm10_bfep_r1.5/local_window/${ct}_TCGA/windows"
+}
+
+list_slides () {  # $1 = cohort; all candidate .svs paths, one per line
+    if [ -n "$REQUIRE_LW" ]; then
+        local lw; lw=$(lw_dir_for "$1")
+        # slides may sit in per-file (GDC UUID) subfolders anywhere under slides/
+        find -L ${SLIDE_SEARCH:-$TCGA_ROOT/$1/slides} -type f -name '*.svs' 2>/dev/null \
+            | awk -v lw="$lw" 'BEGIN { while ((("ls " lw) | getline f) > 0) { sub(/\.npz$/, "", f); want[f] } }
+                               { f = $0; sub(/.*\//, "", f); sub(/\.svs$/, "", f); if ((f in want) && !(f in seen)) { seen[f]; print } }'
+    else
+        find -L "$TCGA_ROOT/$1/slides/raw" -type f -name '*.svs' 2>/dev/null
+    fi
+}
+
 for c in $COHORTS; do
-    src="$TCGA_ROOT/$c/slides/raw"
-    selected="$TODO_DIR/${c}_selected${N_SLIDES}.txt"
+    selected="$TODO_DIR/${c}${REQUIRE_LW:+_lw}_selected${N_SLIDES}.txt"
+    if [ -n "$REQUIRE_LW" ] && [ ! -d "$(lw_dir_for "$c")" ]; then
+        echo "$c: no local-window maps ($(lw_dir_for "$c")), skipping"
+        continue
+    fi
 
     if [ ! -s "$selected" ]; then
-        # slides may sit directly in raw/ or in per-file (GDC UUID) subfolders
-        find -L "$src" -type f -name '*.svs' 2>/dev/null | sort \
+        list_slides "$c" | sort \
             | shuf --random-source=<(yes "$SEED" 2>/dev/null) \
-            | awk -v n="$N_SLIDES" '
+            | awk -v n="$([ "$N_SLIDES" = all ] && echo 1000000000 || echo "$N_SLIDES")" '
                 {
                     f = $0; sub(/.*\//, "", f)
                     pid = substr(f, 1, 12)              # TCGA-XX-XXXX
@@ -63,12 +92,12 @@ for c in $COHORTS; do
                     for (i = 1; i <= nd; i++) pick(dx[i])
                     for (i = 1; i <= no; i++) pick(other[i])
                 }' > "$selected"
-        n_all=$(find -L "$src" -type f -name '*.svs' 2>/dev/null | wc -l)
+        n_all=$(list_slides "$c" | wc -l)
         n_dx=$(grep -c -- '-DX' "$selected")
         n_pat=$(sed 's#.*/##' "$selected" | cut -c1-12 | sort -u | wc -l)
         echo "$c: selected $(wc -l < "$selected") of $n_all slides ($n_dx DX, $n_pat patients) -> $selected"
         if [ ! -s "$selected" ]; then
-            echo "$c: no .svs found under $src" >&2
+            echo "$c: no .svs found${REQUIRE_LW:+ that match a local-window map}" >&2
             rm -f "$selected"
             continue
         fi
